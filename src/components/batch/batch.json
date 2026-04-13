@@ -1,0 +1,26 @@
+{
+  "collectionName": "components_batch_batches",
+  "info": {
+    "displayName": "batch"
+  },
+  "options": {},
+  "attributes": {
+    "batch_note": {
+      "type": "string"
+    },
+    "expiration_date": {
+      "type": "date"
+    },
+    "stock": {
+      "type": "integer"
+    },
+    "is_expired": {
+      "type": "boolean"
+    },
+    "sellingPrice": {
+      "type": "decimal",
+      "required": true
+    }
+  },
+  "config": {}
+}
