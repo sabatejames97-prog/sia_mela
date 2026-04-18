@@ -229,30 +229,14 @@ body {
   color: #4a5568;
 }
 
-/* ==================== FIX: INLINE TABLE DATA ==================== */
-/* For suppliers list – 6 columns (including actions) */
 .data-row {
   display: grid;
-  grid-template-columns: 1.5fr 1.5fr 1fr 1.5fr 1.5fr 0.8fr;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   align-items: center;
   padding: 14px 15px;
   border-bottom: 1px solid #edf2f7;
   transition: background 0.2s;
   font-size: 15px;
-  gap: 10px;
-}
-
-/* For recent medicines table – 3 columns */
-#recentMedicinesTable .data-row {
-  grid-template-columns: 2fr 1fr 1fr;
-}
-
-/* On small screens, allow wrapping but keep horizontal scroll if needed */
-@media (max-width: 900px) {
-  .data-row {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 8px;
-  }
 }
 
 .data-row:hover {
@@ -318,10 +302,11 @@ body {
   box-shadow: 0 0 0 3px rgba(44,122,77,0.1);
 }
 
-/* Responsive adjustments */
+/* Responsive */
 @media (max-width: 768px) {
   .dashboard-wrapper { padding: 15px; }
   .navbar { flex-direction: column; gap: 12px; }
   .nav-links { flex-wrap: wrap; justify-content: center; gap: 25px; }
   .cards-grid { grid-template-columns: 1fr; }
+  .data-row { grid-template-columns: 1fr; gap: 8px; }
 }
