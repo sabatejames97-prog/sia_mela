@@ -1,7 +1,7 @@
 // app.js – shared across all pages
 // @ts-nocheck
 
-// app.js – Pharmacy Inventory System (Strapi v5) – with batch table for sales
+// app.js – Pharmacy Inventory System (Strapi v5)
 const API_URL = 'https://sia-mela-2.onrender.com/api'; // Change to your Render URL
 
 // ==================== AUTH & HELPERS ====================
@@ -63,7 +63,6 @@ async function fetchMedicines() {
 }
 
 // ==================== DASHBOARD ====================
-
 async function loadDashboardData() {
   const medicines = await fetchMedicines();
   let totalStock = 0, lowStockCount = 0, expiredCount = 0;
@@ -101,7 +100,6 @@ async function loadDashboardData() {
 }
 
 // ==================== MEDICINES ====================
-
 async function renderMedicinesFull() {
   const medicines = await fetchMedicines();
   const container = document.getElementById('medicinesList');
@@ -154,7 +152,8 @@ async function renderMedicinesFull() {
 // ---------- Add Medicine ----------
 async function addMedicine(e) {
   e.preventDefault();
-  
+  console.log('addMedicine triggered'); // Debug
+
   const medicineName = document.getElementById('medicine_name').value.trim();
   const medicineDesc = document.getElementById('medicine_desc').value.trim();
   const medicineType = document.getElementById('medicine_type').value;
@@ -358,7 +357,6 @@ async function addStockToMedicine(e) {
 }
 
 // ==================== SALES ====================
-
 let currentSelectedMedicine = null;
 let currentSelectedBatch = null;
 
@@ -416,6 +414,7 @@ function renderBatchTable(medicine) {
   container.innerHTML = html;
   tableContainer.style.display = 'block';
   
+  // Attach event listeners to all Sell buttons
   document.querySelectorAll('.sell-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const batchData = JSON.parse(btn.getAttribute('data-batch'));
@@ -439,6 +438,7 @@ function openQuantityModal(batch) {
   };
   
   const confirmBtn = document.getElementById('confirmSaleBtn');
+  // Remove old listener to avoid duplicates
   const newConfirmBtn = confirmBtn.cloneNode(true);
   confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
   newConfirmBtn.addEventListener('click', async () => {
@@ -492,7 +492,6 @@ async function completeSale(batch) {
 }
 
 // ==================== SUPPLIERS ====================
-
 let currentSuppliers = [];
 
 async function loadSuppliers() {
@@ -613,92 +612,37 @@ async function saveSupplier(e) {
 }
 
 // ==================== LOGIN HANDLER ====================
-if (document.getElementById('loginBtn')) {
-  document.getElementById('loginBtn').addEventListener('click', async () => {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const errorDiv = document.getElementById('errorMsg');
-    try {
-      const res = await fetch(`${API_URL}/auth/local`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error.message);
-      localStorage.setItem('jwt', data.jwt);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      window.location.href = '/dashboard.html';
-    } catch (err) {
-      if (errorDiv) {
-        errorDiv.classList.remove('hidden');
-        errorDiv.innerText = err.message;
-      } else {
-        alert('Login error: ' + err.message);
+function initLogin() {
+  const loginBtn = document.getElementById('loginBtn');
+  if (loginBtn) {
+    loginBtn.addEventListener('click', async () => {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorDiv = document.getElementById('errorMsg');
+      try {
+        const res = await fetch(`${API_URL}/auth/local`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error.message);
+        localStorage.setItem('jwt', data.jwt);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        if (errorDiv) {
+          errorDiv.classList.remove('hidden');
+          errorDiv.innerText = err.message;
+        } else {
+          alert('Login error: ' + err.message);
+        }
       }
-    }
-  });
-}
-
-// ==================== PAGE-SPECIFIC INITIALIZERS ====================
-// These run only when the corresponding page is loaded.
-
-if (document.getElementById('statsCards')) {
-  // Dashboard page
-  if (!isAuthenticated()) window.location.href = '/login.html';
-  loadNavbar();
-  loadDashboardData();
-  const viewAllBtn = document.getElementById('viewAllBtn');
-  if (viewAllBtn) viewAllBtn.addEventListener('click', () => window.location.href = '/medicines.html');
-}
-
-if (document.getElementById('medicinesList')) {
-  // Medicines page
-  if (!isAuthenticated()) window.location.href = '/login.html';
-  loadNavbar();
-  renderMedicinesFull();
-  const addBtn = document.getElementById('addMedicineBtn');
-  if (addBtn) addBtn.addEventListener('click', () => document.getElementById('medicineModal').style.display = 'flex');
-  const addForm = document.getElementById('addMedicineForm');
-  if (addForm) addForm.addEventListener('submit', addMedicine);
-}
-
-if (document.getElementById('medicineSelect')) {
-  // Sales page
-  if (!isAuthenticated()) window.location.href = '/login.html';
-  loadNavbar();
-  initSaleTable();
-}
-
-if (document.getElementById('suppliersList')) {
-  // Suppliers page
-  if (!isAuthenticated()) window.location.href = '/login.html';
-  loadNavbar();
-  loadSuppliers();
-  const role = getUserRole();
-  if (role === 'admin') {
-    const addBtn = document.getElementById('showAddSupplierBtn');
-    if (addBtn) {
-      addBtn.style.display = 'inline-flex';
-      addBtn.addEventListener('click', () => openSupplierModal());
-    }
-    const supplierForm = document.getElementById('supplierForm');
-    if (supplierForm) supplierForm.addEventListener('submit', saveSupplier);
-  }
-}
-
-// ==================== ROOT AUTH REDIRECT ====================
-// If the page is the root (no specific page ID), redirect.
-if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-  if (!isAuthenticated()) {
-    window.location.href = '/login.html';
-  } else {
-    window.location.href = '/dashboard.html';
+    });
   }
 }
 
 // ==================== NAVBAR ====================
-
 function loadNavbar() {
   const user = getUser();
   const role = getUserRole();
@@ -735,7 +679,7 @@ window.toggleProfileMenu = () => {
 window.logout = () => {
   localStorage.removeItem('jwt');
   localStorage.removeItem('user');
-  window.location.href = '/login.html';   // Fixed: was '/index.html'
+  window.location.href = '/login.html';
 };
 
 function escapeHtml(str) {
@@ -743,15 +687,90 @@ function escapeHtml(str) {
   return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
 }
 
-// Event listeners for forms (delegated or direct)
+// ==================== PAGE INITIALIZATION (runs after DOM is ready) ====================
 document.addEventListener('DOMContentLoaded', () => {
-  const addStockForm = document.getElementById('addStockForm');
-  if (addStockForm) addStockForm.addEventListener('submit', addStockToMedicine);
-  const editMedicineForm = document.getElementById('editMedicineForm');
-  if (editMedicineForm) editMedicineForm.addEventListener('submit', editMedicineSubmit);
+  console.log('DOM loaded, initializing page...');
+  
+  // Always try to attach login handler
+  initLogin();
+  
+  // Dashboard page
+  if (document.getElementById('statsCards')) {
+    if (!isAuthenticated()) window.location.href = '/login.html';
+    loadNavbar();
+    loadDashboardData();
+    const viewAllBtn = document.getElementById('viewAllBtn');
+    if (viewAllBtn) viewAllBtn.addEventListener('click', () => window.location.href = '/medicines.html');
+  }
+  
+  // Medicines page
+  if (document.getElementById('medicinesList')) {
+    if (!isAuthenticated()) window.location.href = '/login.html';
+    loadNavbar();
+    renderMedicinesFull();
+    
+    // Add Medicine button
+    const addBtn = document.getElementById('addMedicineBtn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        document.getElementById('medicineModal').style.display = 'flex';
+      });
+    }
+    
+    // Add Medicine form submit
+    const addForm = document.getElementById('addMedicineForm');
+    if (addForm) {
+      addForm.addEventListener('submit', addMedicine);
+    }
+    
+    // Edit Medicine form submit (handled separately)
+    const editForm = document.getElementById('editMedicineForm');
+    if (editForm) {
+      editForm.addEventListener('submit', editMedicineSubmit);
+    }
+    
+    // Add Stock form submit
+    const stockForm = document.getElementById('addStockForm');
+    if (stockForm) {
+      stockForm.addEventListener('submit', addStockToMedicine);
+    }
+  }
+  
+  // Sales page
+  if (document.getElementById('medicineSelect')) {
+    if (!isAuthenticated()) window.location.href = '/login.html';
+    loadNavbar();
+    initSaleTable();
+  }
+  
+  // Suppliers page
+  if (document.getElementById('suppliersList')) {
+    if (!isAuthenticated()) window.location.href = '/login.html';
+    loadNavbar();
+    loadSuppliers();
+    const role = getUserRole();
+    if (role === 'admin') {
+      const addBtn = document.getElementById('showAddSupplierBtn');
+      if (addBtn) {
+        addBtn.style.display = 'inline-flex';
+        addBtn.addEventListener('click', () => openSupplierModal());
+      }
+      const supplierForm = document.getElementById('supplierForm');
+      if (supplierForm) supplierForm.addEventListener('submit', saveSupplier);
+    }
+  }
+  
+  // Root redirect (if no specific page elements)
+  if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+    if (!isAuthenticated()) {
+      window.location.href = '/login.html';
+    } else {
+      window.location.href = '/dashboard.html';
+    }
+  }
 });
 
-// Global exports
+// Global exports for onclick attributes
 window.openEditMedicineModal = openEditMedicineModal;
 window.closeEditMedicineModal = closeEditMedicineModal;
 window.openEditStockModal = openEditStockModal;
