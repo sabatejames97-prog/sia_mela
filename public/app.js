@@ -500,7 +500,6 @@ async function loadSuppliers() {
     const data = await apiCall('/suppliers');
     let suppliersList = Array.isArray(data) ? data : (data.data || []);
     currentSuppliers = suppliersList.map(item => {
-      // Strapi v5 uses documentId; keep both for compatibility
       return { 
         id: item.id, 
         documentId: item.documentId, 
@@ -601,10 +600,8 @@ async function saveSupplier(e) {
   };
   try {
     if (docId) {
-      // Update existing
       await apiCall(`/suppliers/${docId}`, { method: 'PUT', body: JSON.stringify({ data }) });
     } else {
-      // Create new
       await apiCall('/suppliers', { method: 'POST', body: JSON.stringify({ data }) });
     }
     closeSupplierModal();
@@ -615,8 +612,7 @@ async function saveSupplier(e) {
   }
 }
 
-// ==================== LOGIN HANDLER (to avoid CSP violations) ====================
-// This will run only on the login page (index.html or login.html)
+// ==================== LOGIN HANDLER ====================
 if (document.getElementById('loginBtn')) {
   document.getElementById('loginBtn').addEventListener('click', async () => {
     const email = document.getElementById('email').value;
@@ -644,15 +640,62 @@ if (document.getElementById('loginBtn')) {
   });
 }
 
-// ==================== ROOT AUTH REDIRECT (for the root index.html) ====================
-window.handleAuthRedirect = function() {
+// ==================== PAGE-SPECIFIC INITIALIZERS ====================
+// These run only when the corresponding page is loaded.
+
+if (document.getElementById('statsCards')) {
+  // Dashboard page
+  if (!isAuthenticated()) window.location.href = '/login.html';
+  loadNavbar();
+  loadDashboardData();
+  const viewAllBtn = document.getElementById('viewAllBtn');
+  if (viewAllBtn) viewAllBtn.addEventListener('click', () => window.location.href = '/medicines.html');
+}
+
+if (document.getElementById('medicinesList')) {
+  // Medicines page
+  if (!isAuthenticated()) window.location.href = '/login.html';
+  loadNavbar();
+  renderMedicinesFull();
+  const addBtn = document.getElementById('addMedicineBtn');
+  if (addBtn) addBtn.addEventListener('click', () => document.getElementById('medicineModal').style.display = 'flex');
+  const addForm = document.getElementById('addMedicineForm');
+  if (addForm) addForm.addEventListener('submit', addMedicine);
+}
+
+if (document.getElementById('medicineSelect')) {
+  // Sales page
+  if (!isAuthenticated()) window.location.href = '/login.html';
+  loadNavbar();
+  initSaleTable();
+}
+
+if (document.getElementById('suppliersList')) {
+  // Suppliers page
+  if (!isAuthenticated()) window.location.href = '/login.html';
+  loadNavbar();
+  loadSuppliers();
+  const role = getUserRole();
+  if (role === 'admin') {
+    const addBtn = document.getElementById('showAddSupplierBtn');
+    if (addBtn) {
+      addBtn.style.display = 'inline-flex';
+      addBtn.addEventListener('click', () => openSupplierModal());
+    }
+    const supplierForm = document.getElementById('supplierForm');
+    if (supplierForm) supplierForm.addEventListener('submit', saveSupplier);
+  }
+}
+
+// ==================== ROOT AUTH REDIRECT ====================
+// If the page is the root (no specific page ID), redirect.
+if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
   if (!isAuthenticated()) {
-    // Redirect to your login page (adjust the path if needed)
     window.location.href = '/login.html';
   } else {
     window.location.href = '/dashboard.html';
   }
-};
+}
 
 // ==================== NAVBAR ====================
 
@@ -692,7 +735,7 @@ window.toggleProfileMenu = () => {
 window.logout = () => {
   localStorage.removeItem('jwt');
   localStorage.removeItem('user');
-  window.location.href = '/index.html';
+  window.location.href = '/login.html';   // Fixed: was '/index.html'
 };
 
 function escapeHtml(str) {
@@ -700,7 +743,7 @@ function escapeHtml(str) {
   return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
 }
 
-// Event listeners
+// Event listeners for forms (delegated or direct)
 document.addEventListener('DOMContentLoaded', () => {
   const addStockForm = document.getElementById('addStockForm');
   if (addStockForm) addStockForm.addEventListener('submit', addStockToMedicine);
