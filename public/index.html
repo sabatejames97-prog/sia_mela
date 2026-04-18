@@ -4,13 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pharmacy System</title>
+</head>
+<body>
+  <div id="root-loading">Loading...</div>
+  <script src="app.js"></script>
   <script>
-    if (!localStorage.getItem('jwt')) {
-      window.location.href = '/login.html';
+    if (typeof window.handleAuthRedirect === 'function') {
+      window.handleAuthRedirect();
     } else {
-      window.location.href = '/dashboard.html';
+      window.addEventListener('load', function() {
+        if (window.handleAuthRedirect) window.handleAuthRedirect();
+      });
     }
   </script>
-</head>
-<body>Loading...</body>
+</body>
 </html>

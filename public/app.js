@@ -1,8 +1,8 @@
 // app.js – shared across all pages
 // @ts-nocheck
 
-/// app.js – Pharmacy Inventory System (Strapi v5) – with batch table for sales
-const API_URL = 'https://sia-mela-2.onrender.com/api';
+// app.js – Pharmacy Inventory System (Strapi v5) – with batch table for sales
+const API_URL = 'https://sia-mela-2.onrender.com/api'; // Change to your Render URL
 
 // ==================== AUTH & HELPERS ====================
 
@@ -615,6 +615,45 @@ async function saveSupplier(e) {
   }
 }
 
+// ==================== LOGIN HANDLER (to avoid CSP violations) ====================
+// This will run only on the login page (index.html or login.html)
+if (document.getElementById('loginBtn')) {
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const errorDiv = document.getElementById('errorMsg');
+    try {
+      const res = await fetch(`${API_URL}/auth/local`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error.message);
+      localStorage.setItem('jwt', data.jwt);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      window.location.href = '/dashboard.html';
+    } catch (err) {
+      if (errorDiv) {
+        errorDiv.classList.remove('hidden');
+        errorDiv.innerText = err.message;
+      } else {
+        alert('Login error: ' + err.message);
+      }
+    }
+  });
+}
+
+// ==================== ROOT AUTH REDIRECT (for the root index.html) ====================
+window.handleAuthRedirect = function() {
+  if (!isAuthenticated()) {
+    // Redirect to your login page (adjust the path if needed)
+    window.location.href = '/login.html';
+  } else {
+    window.location.href = '/dashboard.html';
+  }
+};
+
 // ==================== NAVBAR ====================
 
 function loadNavbar() {
@@ -653,7 +692,7 @@ window.toggleProfileMenu = () => {
 window.logout = () => {
   localStorage.removeItem('jwt');
   localStorage.removeItem('user');
-  window.location.href = '/login.html';
+  window.location.href = '/index.html';
 };
 
 function escapeHtml(str) {
