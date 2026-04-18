@@ -1,3 +1,6 @@
+// app.js – shared across all pages
+// @ts-nocheck
+
 // app.js – Pharmacy Inventory System (Strapi v5)
 const API_URL = 'https://sia-mela-2.onrender.com/api'; // Change to your Render URL
 
