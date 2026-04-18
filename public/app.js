@@ -1,6 +1,3 @@
-// app.js – shared across all pages
-// @ts-nocheck
-
 // app.js – Pharmacy Inventory System (Strapi v5)
 const API_URL = 'https://sia-mela-2.onrender.com/api'; // Change to your Render URL
 
@@ -45,17 +42,25 @@ async function apiCall(endpoint, options = {}) {
     ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
   };
   const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+  
+  // Handle empty responses (e.g., 204 No Content for DELETE)
+  const contentType = res.headers.get('content-type');
+  if (res.status === 204 || (contentType && contentType.includes('application/json') === false)) {
+    return null; // No JSON to parse
+  }
+  
   if (!res.ok) {
     const errorText = await res.text();
     throw new Error(errorText || `HTTP ${res.status}`);
   }
+  
   return res.json();
 }
 
 async function fetchMedicines() {
   try {
     const data = await apiCall('/medicines?populate=*');
-    return data.data || [];
+    return data?.data || [];
   } catch (err) {
     console.error('Failed to fetch medicines:', err);
     return [];
@@ -152,7 +157,7 @@ async function renderMedicinesFull() {
 // ---------- Add Medicine ----------
 async function addMedicine(e) {
   e.preventDefault();
-  console.log('addMedicine triggered'); // Debug
+  console.log('addMedicine triggered');
 
   const medicineName = document.getElementById('medicine_name').value.trim();
   const medicineDesc = document.getElementById('medicine_desc').value.trim();
@@ -414,7 +419,6 @@ function renderBatchTable(medicine) {
   container.innerHTML = html;
   tableContainer.style.display = 'block';
   
-  // Attach event listeners to all Sell buttons
   document.querySelectorAll('.sell-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const batchData = JSON.parse(btn.getAttribute('data-batch'));
@@ -425,41 +429,59 @@ function renderBatchTable(medicine) {
 }
 
 function openQuantityModal(batch) {
-  document.getElementById('selectedBatchInfo').innerHTML = `Batch: ${batch.batch_note}<br>Price: ₱${batch.sellingPrice}<br>Max stock: ${batch.stock}`;
-  document.getElementById('saleQuantity').value = 1;
-  document.getElementById('saleQuantity').max = batch.stock;
-  document.getElementById('saleTotal').innerHTML = `Total: ₱${batch.sellingPrice}`;
-  document.getElementById('quantityModal').style.display = 'flex';
-  
+  // Defensive checks to avoid "Cannot set properties of null"
+  const selectedInfo = document.getElementById('selectedBatchInfo');
   const quantityInput = document.getElementById('saleQuantity');
+  const totalSpan = document.getElementById('saleTotal');
+  const modal = document.getElementById('quantityModal');
+  
+  if (!selectedInfo || !quantityInput || !totalSpan || !modal) {
+    console.error('Quantity modal elements missing. Ensure sales.html contains: selectedBatchInfo, saleQuantity, saleTotal, quantityModal');
+    alert('Error: Sale modal not properly loaded. Please refresh the page.');
+    return;
+  }
+  
+  selectedInfo.innerHTML = `Batch: ${batch.batch_note}<br>Price: ₱${batch.sellingPrice}<br>Max stock: ${batch.stock}`;
+  quantityInput.value = 1;
+  quantityInput.max = batch.stock;
+  totalSpan.innerHTML = `Total: ₱${batch.sellingPrice}`;
+  modal.style.display = 'flex';
+  
+  // Remove previous listener to avoid duplicates
+  const oldHandler = quantityInput.oninput;
   quantityInput.oninput = () => {
     const qty = parseInt(quantityInput.value) || 0;
-    document.getElementById('saleTotal').innerHTML = `Total: ₱${(qty * batch.sellingPrice).toFixed(2)}`;
+    totalSpan.innerHTML = `Total: ₱${(qty * batch.sellingPrice).toFixed(2)}`;
   };
   
   const confirmBtn = document.getElementById('confirmSaleBtn');
-  // Remove old listener to avoid duplicates
-  const newConfirmBtn = confirmBtn.cloneNode(true);
-  confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-  newConfirmBtn.addEventListener('click', async () => {
-    await completeSale(batch);
-  });
+  if (confirmBtn) {
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+    newConfirmBtn.addEventListener('click', async () => {
+      await completeSale(batch);
+    });
+  } else {
+    console.error('Confirm sale button not found');
+  }
 }
 
 function closeQuantityModal() {
-  document.getElementById('quantityModal').style.display = 'none';
-  document.getElementById('saleMessage').innerHTML = '';
+  const modal = document.getElementById('quantityModal');
+  const msgDiv = document.getElementById('saleMessage');
+  if (modal) modal.style.display = 'none';
+  if (msgDiv) msgDiv.innerHTML = '';
 }
 
 async function completeSale(batch) {
   const qty = parseInt(document.getElementById('saleQuantity').value);
+  const msgDiv = document.getElementById('saleMessage');
   if (isNaN(qty) || qty <= 0 || qty > batch.stock) {
-    document.getElementById('saleMessage').innerHTML = '<span class="text-red-500">Invalid quantity</span>';
+    if (msgDiv) msgDiv.innerHTML = '<span class="text-red-500">Invalid quantity</span>';
     return;
   }
   
   try {
-    // Create sale record – use medicine's documentId
     await apiCall('/sales', {
       method: 'POST',
       body: JSON.stringify({
@@ -474,7 +496,6 @@ async function completeSale(batch) {
       })
     });
     
-    // Update stock in medicine – use documentId
     const updatedBatches = currentSelectedMedicine.batch.map(b => 
       b.batch_note === batch.batch_note ? { ...b, stock: b.stock - qty } : b
     );
@@ -483,11 +504,11 @@ async function completeSale(batch) {
       body: JSON.stringify({ data: { batch: updatedBatches } })
     });
     
-    document.getElementById('saleMessage').innerHTML = '<span class="text-green-600">✅ Sale completed! Refreshing...</span>';
+    if (msgDiv) msgDiv.innerHTML = '<span class="text-green-600">✅ Sale completed! Refreshing...</span>';
     setTimeout(() => window.location.reload(), 1500);
   } catch (err) {
     console.error('Sale error:', err);
-    document.getElementById('saleMessage').innerHTML = `<span class="text-red-500">Error: ${err.message}</span>`;
+    if (msgDiv) msgDiv.innerHTML = `<span class="text-red-500">Error: ${err.message}</span>`;
   }
 }
 
@@ -497,7 +518,7 @@ let currentSuppliers = [];
 async function loadSuppliers() {
   try {
     const data = await apiCall('/suppliers');
-    let suppliersList = Array.isArray(data) ? data : (data.data || []);
+    let suppliersList = Array.isArray(data) ? data : (data?.data || []);
     currentSuppliers = suppliersList.map(item => {
       return { 
         id: item.id, 
@@ -687,14 +708,13 @@ function escapeHtml(str) {
   return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
 }
 
-// ==================== PAGE INITIALIZATION (runs after DOM is ready) ====================
+// ==================== PAGE INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing page...');
   
-  // Always try to attach login handler
   initLogin();
   
-  // Dashboard page
+  // Dashboard
   if (document.getElementById('statsCards')) {
     if (!isAuthenticated()) window.location.href = '/login.html';
     loadNavbar();
@@ -703,47 +723,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (viewAllBtn) viewAllBtn.addEventListener('click', () => window.location.href = '/medicines.html');
   }
   
-  // Medicines page
+  // Medicines
   if (document.getElementById('medicinesList')) {
     if (!isAuthenticated()) window.location.href = '/login.html';
     loadNavbar();
     renderMedicinesFull();
     
-    // Add Medicine button
     const addBtn = document.getElementById('addMedicineBtn');
-    if (addBtn) {
-      addBtn.addEventListener('click', () => {
-        document.getElementById('medicineModal').style.display = 'flex';
-      });
-    }
-    
-    // Add Medicine form submit
+    if (addBtn) addBtn.addEventListener('click', () => document.getElementById('medicineModal').style.display = 'flex');
     const addForm = document.getElementById('addMedicineForm');
-    if (addForm) {
-      addForm.addEventListener('submit', addMedicine);
-    }
-    
-    // Edit Medicine form submit (handled separately)
+    if (addForm) addForm.addEventListener('submit', addMedicine);
     const editForm = document.getElementById('editMedicineForm');
-    if (editForm) {
-      editForm.addEventListener('submit', editMedicineSubmit);
-    }
-    
-    // Add Stock form submit
+    if (editForm) editForm.addEventListener('submit', editMedicineSubmit);
     const stockForm = document.getElementById('addStockForm');
-    if (stockForm) {
-      stockForm.addEventListener('submit', addStockToMedicine);
-    }
+    if (stockForm) stockForm.addEventListener('submit', addStockToMedicine);
   }
   
-  // Sales page
+  // Sales
   if (document.getElementById('medicineSelect')) {
     if (!isAuthenticated()) window.location.href = '/login.html';
     loadNavbar();
     initSaleTable();
   }
   
-  // Suppliers page
+  // Suppliers
   if (document.getElementById('suppliersList')) {
     if (!isAuthenticated()) window.location.href = '/login.html';
     loadNavbar();
@@ -760,17 +763,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   
-  // Root redirect (if no specific page elements)
+  // Root redirect
   if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-    if (!isAuthenticated()) {
-      window.location.href = '/login.html';
-    } else {
-      window.location.href = '/dashboard.html';
-    }
+    if (!isAuthenticated()) window.location.href = '/login.html';
+    else window.location.href = '/dashboard.html';
   }
 });
 
-// Global exports for onclick attributes
+// Global exports
 window.openEditMedicineModal = openEditMedicineModal;
 window.closeEditMedicineModal = closeEditMedicineModal;
 window.openEditStockModal = openEditStockModal;
