@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard – Pharmacy</title>
+  <title>Medicines – Pharmacy</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="style.css">
@@ -11,16 +11,84 @@
 <body class="bg-gray-50">
   <div id="navbar"></div>
   <div class="dashboard-wrapper">
-    <div class="cards-grid" id="statsCards"></div>
-    <div class="grid md:grid-cols-2 gap-6 mb-8" id="alerts"></div>
     <div class="table-section">
       <div class="table-header">
-        <h3><i class="fas fa-pills"></i> Recent Medicines</h3>
-        <button class="btn-sm btn-primary" id="viewAllBtn">View All</button>
+        <h3><i class="fas fa-pills"></i> All Medicines</h3>
+        <button class="btn-sm btn-primary" id="addMedicineBtn"><i class="fas fa-plus"></i> Add Medicine</button>
       </div>
-      <div id="recentMedicinesTable"></div>
+      <div id="medicinesList"></div>
     </div>
   </div>
+
+  <!-- Add Medicine Modal -->
+  <div id="medicineModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+      <span class="modal-close" onclick="closeMedicineModal()">&times;</span>
+      <h2 class="text-xl font-bold mb-4">Add New Medicine</h2>
+      <form id="addMedicineForm">
+        <div class="form-group"><label>Medicine Name *</label><input type="text" id="medicine_name" class="form-control" required></div>
+        <div class="form-group"><label>Description *</label><textarea id="medicine_desc" class="form-control" required></textarea></div>
+        <div class="form-group"><label>Medicine Type</label>
+          <select id="medicine_type" class="form-control">
+            <option>tablet</option><option>capsule</option><option>syrup</option><option>injectable</option><option>inhaler</option><option>drops</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Prescription Image (optional)</label><input type="file" id="prescriptionImage" accept="image/*" class="form-control"></div>
+        <hr class="my-4">
+        <h3 class="font-bold text-lg mb-2">First Batch</h3>
+        <div class="form-group"><label>Batch Number *</label><input type="text" id="batch_note" class="form-control" required></div>
+        <div class="form-group"><label>Expiration Date *</label><input type="date" id="expiration_date" class="form-control" required></div>
+        <div class="form-group"><label>Stock Quantity *</label><input type="number" id="stock" class="form-control" min="0" required></div>
+        <div class="form-group"><label>Selling Price *</label><input type="number" id="sellingPrice" step="0.01" class="form-control" required></div>
+        <button type="submit" class="btn-sm btn-primary w-full">Save Medicine</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Medicine Modal -->
+  <div id="editMedicineModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content" style="max-width: 600px;">
+      <span class="modal-close" onclick="closeEditMedicineModal()">&times;</span>
+      <h2 class="text-xl font-bold mb-4">Edit Medicine</h2>
+      <form id="editMedicineForm">
+        <input type="hidden" id="editMedicineId">
+        <div class="form-group"><label>Medicine Name *</label><input type="text" id="edit_medicine_name" class="form-control" required></div>
+        <div class="form-group"><label>Description *</label><textarea id="edit_medicine_desc" class="form-control" required></textarea></div>
+        <div class="form-group"><label>Medicine Type</label>
+          <select id="edit_medicine_type" class="form-control">
+            <option>tablet</option><option>capsule</option><option>syrup</option><option>injectable</option><option>inhaler</option><option>drops</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Replace Prescription Image (optional)</label><input type="file" id="edit_prescriptionImage" accept="image/*" class="form-control"></div>
+        <button type="submit" class="btn-sm btn-primary w-full">Update Medicine</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Stock Modal -->
+  <div id="editStockModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeEditStockModal()">&times;</span>
+      <h2 class="text-xl font-bold mb-4">Add Stock to Medicine</h2>
+      <form id="addStockForm">
+        <input type="hidden" id="editMedicineIdForStock">
+        <div class="form-group"><label>Medicine</label><input type="text" id="editMedicineName" class="form-control" disabled></div>
+        <div class="form-group"><label>Select Batch</label>
+          <select id="existingBatchSelect" class="form-control">
+            <option value="new">+ Add New Batch</option>
+          </select>
+        </div>
+        <div id="newBatchFields" style="display:none;">
+          <div class="form-group"><label>New Batch Number *</label><input type="text" id="newBatchNote" class="form-control"></div>
+          <div class="form-group"><label>Expiration Date *</label><input type="date" id="newExpirationDate" class="form-control"></div>
+          <div class="form-group"><label>Selling Price *</label><input type="number" id="newSellingPrice" step="0.01" class="form-control"></div>
+        </div>
+        <div class="form-group"><label>Quantity to Add *</label><input type="number" id="addQuantity" class="form-control" min="1" required></div>
+        <button type="submit" class="btn-sm btn-primary w-full">Add Stock</button>
+      </form>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
