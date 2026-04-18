@@ -44,15 +44,27 @@
       const role = getUserRole();
       const isAdmin = (role === 'admin');
       loadNavbar();
+      
+      // loadSuppliers() handles both admin and staff:
+      // - Admin sees edit/delete buttons
+      // - Staff sees read-only table (no action column)
+      await loadSuppliers();
+      
       if (isAdmin) {
-        // Admin: full CRUD
-        document.getElementById('showAddSupplierBtn').style.display = 'inline-flex';
-        await loadSuppliersModern();
-        document.getElementById('showAddSupplierBtn').addEventListener('click', () => openSupplierModal());
-        document.getElementById('supplierForm').addEventListener('submit', saveSupplier);
+        // Show the "Add Supplier" button only for admin
+        const addBtn = document.getElementById('showAddSupplierBtn');
+        if (addBtn) {
+          addBtn.style.display = 'inline-flex';
+          addBtn.addEventListener('click', () => openSupplierModal());
+        }
+        // Attach form submit handler for admin
+        const supplierForm = document.getElementById('supplierForm');
+        if (supplierForm) supplierForm.addEventListener('submit', saveSupplier);
       } else {
-        // Staff: read only
-        await loadSuppliersReadOnly();
+        // Ensure the button stays hidden and no form handler is attached
+        const addBtn = document.getElementById('showAddSupplierBtn');
+        if (addBtn) addBtn.style.display = 'none';
+        // Optionally remove form handler if previously set (but it won't be)
       }
     })();
   </script>

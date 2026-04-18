@@ -1,7 +1,7 @@
 // app.js – shared across all pages
 // @ts-nocheck
 
-// app.js – Pharmacy Inventory System (Strapi v5) – with batch table for sales
+/// app.js – Pharmacy Inventory System (Strapi v5) – with batch table for sales
 const API_URL = 'http://localhost:1337/api';
 
 // ==================== AUTH & HELPERS ====================
@@ -19,17 +19,21 @@ function getUserRole() {
   const user = getUser();
   if (!user) return null;
 
+  if (user.role && typeof user.role === 'object' && user.role.name) {
+    const roleName = user.role.name.toLowerCase();
+    if (roleName === 'admin') return 'admin';
+    if (roleName === 'staff') return 'staff';
+  }
+  if (user.role && typeof user.role === 'string') {
+    const roleName = user.role.toLowerCase();
+    if (roleName === 'admin') return 'admin';
+    if (roleName === 'staff') return 'staff';
+  }
+
   const email = (user.email || '').toLowerCase();
   const adminEmails = ['admin-phar@gmail.com', 'admin@admin.com'];
   if (adminEmails.includes(email)) return 'admin';
   if (email.includes('admin') || email.includes('phar')) return 'admin';
-
-  let roleName = null;
-  if (user.role) {
-    if (typeof user.role === 'object' && user.role.name) roleName = user.role.name;
-    else if (typeof user.role === 'string') roleName = user.role;
-  }
-  if (roleName && roleName.toLowerCase() === 'pharmacyadmin') return 'admin';
 
   return 'staff';
 }
@@ -41,7 +45,10 @@ async function apiCall(endpoint, options = {}) {
     ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
   };
   const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -93,13 +100,13 @@ async function loadDashboardData() {
   `;
 }
 
-// ==================== MEDICINES (with Edit & Add Stock) ====================
+// ==================== MEDICINES ====================
 
 async function renderMedicinesFull() {
   const medicines = await fetchMedicines();
   const container = document.getElementById('medicinesList');
   const role = getUserRole();
-  const isAdmin = (role === 'admin');
+  const canManageMedicines = (role === 'admin' || role === 'staff');
   if (!container) return;
   if (medicines.length === 0) {
     container.innerHTML = '<div class="text-center text-gray-500 p-10">No medicines found. Click "Add Medicine" to create one.</div>';
@@ -118,10 +125,10 @@ async function renderMedicinesFull() {
             <h3 class="text-2xl font-bold">${escapeHtml(medicineName)}</h3>
             <p class="text-gray-600 mt-1">${escapeHtml(description)} | ${escapeHtml(medicineType)}</p>
           </div>
-          ${isAdmin ? `
+          ${canManageMedicines ? `
             <div class="flex gap-2">
-              <button class="btn-sm btn-secondary" onclick="openEditMedicineModal('${med.id}', '${escapeHtml(medicineName)}', '${escapeHtml(description)}', '${escapeHtml(medicineType)}', '${med.is_prescription ? med.is_prescription.id : ''}')"><i class="fas fa-edit"></i> Edit</button>
-              <button class="btn-sm btn-primary" onclick="openEditStockModal('${med.id}', '${escapeHtml(medicineName)}', \`${batchesJson}\`)"><i class="fas fa-plus-circle"></i> Add Stock</button>
+              <button class="btn-sm btn-secondary" onclick="openEditMedicineModal('${med.documentId}', '${escapeHtml(medicineName)}', '${escapeHtml(description)}', '${escapeHtml(medicineType)}', '${med.is_prescription ? med.is_prescription.id : ''}')"><i class="fas fa-edit"></i> Edit</button>
+              <button class="btn-sm btn-primary" onclick="openEditStockModal('${med.documentId}', '${escapeHtml(medicineName)}', \`${batchesJson}\`)"><i class="fas fa-plus-circle"></i> Add Stock</button>
             </div>
           ` : ''}
         </div>
@@ -147,6 +154,22 @@ async function renderMedicinesFull() {
 // ---------- Add Medicine ----------
 async function addMedicine(e) {
   e.preventDefault();
+  
+  const medicineName = document.getElementById('medicine_name').value.trim();
+  const medicineDesc = document.getElementById('medicine_desc').value.trim();
+  const medicineType = document.getElementById('medicine_type').value;
+  const batchNote = document.getElementById('batch_note').value.trim();
+  const expiryDate = document.getElementById('expiration_date').value;
+  const stock = parseInt(document.getElementById('stock').value);
+  const sellingPrice = parseFloat(document.getElementById('sellingPrice').value);
+  
+  if (!medicineName) { alert('Medicine name is required'); return; }
+  if (!medicineDesc) { alert('Description is required'); return; }
+  if (!batchNote) { alert('Batch number is required'); return; }
+  if (!expiryDate) { alert('Expiration date is required'); return; }
+  if (isNaN(stock) || stock < 0) { alert('Valid stock quantity is required'); return; }
+  if (isNaN(sellingPrice) || sellingPrice < 0) { alert('Valid selling price is required'); return; }
+  
   const imageFile = document.getElementById('prescriptionImage').files[0];
   let prescriptionId = null;
   if (imageFile) {
@@ -161,34 +184,42 @@ async function addMedicine(e) {
     const uploadData = await uploadRes.json();
     if (uploadData && uploadData[0]) prescriptionId = uploadData[0].id;
   }
+  
   const batchData = {
-    batch_note: document.getElementById('batch_note').value,
-    expiration_date: document.getElementById('expiration_date').value,
-    stock: parseInt(document.getElementById('stock').value),
-    sellingPrice: parseFloat(document.getElementById('sellingPrice').value),
+    batch_note: batchNote,
+    expiration_date: expiryDate,
+    stock: stock,
+    sellingPrice: sellingPrice,
     is_expired: false
   };
+  
   const medicineData = {
-    medicine_name: document.getElementById('medicine_name').value,
-    medicine_desc: document.getElementById('medicine_desc').value,
-    medicine_type: document.getElementById('medicine_type').value,
+    medicine_name: medicineName,
+    medicine_desc: medicineDesc,
+    medicine_type: medicineType,
     batch: [batchData]
   };
   if (prescriptionId) medicineData.is_prescription = prescriptionId;
-  await apiCall('/medicines', { method: 'POST', body: JSON.stringify({ data: medicineData }) });
-  alert('Medicine added successfully!');
-  document.getElementById('medicineModal').style.display = 'none';
-  document.getElementById('addMedicineForm').reset();
-  await renderMedicinesFull();
+  
+  try {
+    await apiCall('/medicines', { method: 'POST', body: JSON.stringify({ data: medicineData }) });
+    alert('Medicine added successfully!');
+    document.getElementById('medicineModal').style.display = 'none';
+    document.getElementById('addMedicineForm').reset();
+    await renderMedicinesFull();
+  } catch (err) {
+    console.error('Add medicine error:', err);
+    alert('Failed to add medicine: ' + err.message);
+  }
 }
 
 function closeMedicineModal() {
   document.getElementById('medicineModal').style.display = 'none';
 }
 
-// ---------- Edit Medicine (Admin) ----------
-function openEditMedicineModal(id, name, desc, type, oldImageId) {
-  document.getElementById('editMedicineId').value = id;
+// ---------- Edit Medicine ----------
+function openEditMedicineModal(docId, name, desc, type, oldImageId) {
+  document.getElementById('editMedicineId').value = docId;
   document.getElementById('edit_medicine_name').value = name;
   document.getElementById('edit_medicine_desc').value = desc;
   document.getElementById('edit_medicine_type').value = type;
@@ -203,7 +234,7 @@ function closeEditMedicineModal() {
 
 async function editMedicineSubmit(e) {
   e.preventDefault();
-  const id = document.getElementById('editMedicineId').value;
+  const docId = document.getElementById('editMedicineId').value;
   const newName = document.getElementById('edit_medicine_name').value;
   const newDesc = document.getElementById('edit_medicine_desc').value;
   const newType = document.getElementById('edit_medicine_type').value;
@@ -230,18 +261,23 @@ async function editMedicineSubmit(e) {
   };
   if (prescriptionId) updateData.is_prescription = prescriptionId;
   
-  await apiCall(`/medicines/${id}`, { method: 'PUT', body: JSON.stringify({ data: updateData }) });
-  alert('Medicine updated successfully!');
-  closeEditMedicineModal();
-  await renderMedicinesFull();
+  try {
+    await apiCall(`/medicines/${docId}`, { method: 'PUT', body: JSON.stringify({ data: updateData }) });
+    alert('Medicine updated successfully!');
+    closeEditMedicineModal();
+    await renderMedicinesFull();
+  } catch (err) {
+    console.error('Edit medicine error:', err);
+    alert('Failed to update medicine: ' + err.message);
+  }
 }
 
-// ---------- Add Stock (Admin) ----------
+// ---------- Add Stock ----------
 let currentMedicineForStock = null;
 
-function openEditStockModal(medicineId, medicineName, batchesJson) {
-  currentMedicineForStock = { id: medicineId, name: medicineName, batches: JSON.parse(batchesJson) };
-  document.getElementById('editMedicineIdForStock').value = medicineId;
+function openEditStockModal(docId, medicineName, batchesJson) {
+  currentMedicineForStock = { documentId: docId, name: medicineName, batches: JSON.parse(batchesJson) };
+  document.getElementById('editMedicineIdForStock').value = docId;
   document.getElementById('editMedicineName').value = medicineName;
   
   const batchSelect = document.getElementById('existingBatchSelect');
@@ -270,7 +306,7 @@ function closeEditStockModal() {
 
 async function addStockToMedicine(e) {
   e.preventDefault();
-  const medicineId = document.getElementById('editMedicineIdForStock').value;
+  const docId = document.getElementById('editMedicineIdForStock').value;
   const addQty = parseInt(document.getElementById('addQuantity').value);
   const batchSelect = document.getElementById('existingBatchSelect');
   const selectedValue = batchSelect.value;
@@ -283,13 +319,14 @@ async function addStockToMedicine(e) {
   let updatedBatches = [...currentMedicineForStock.batches];
   
   if (selectedValue === 'new') {
-    const newBatchNote = document.getElementById('newBatchNote').value;
+    const newBatchNote = document.getElementById('newBatchNote').value.trim();
     const newExpiry = document.getElementById('newExpirationDate').value;
     const newPrice = parseFloat(document.getElementById('newSellingPrice').value);
-    if (!newBatchNote || !newExpiry || isNaN(newPrice)) {
-      alert('Please fill all new batch fields');
-      return;
-    }
+    
+    if (!newBatchNote) { alert('New batch number is required'); return; }
+    if (!newExpiry) { alert('Expiration date is required for new batch'); return; }
+    if (isNaN(newPrice) || newPrice <= 0) { alert('Valid selling price is required'); return; }
+    
     updatedBatches.push({
       batch_note: newBatchNote,
       expiration_date: newExpiry,
@@ -307,7 +344,7 @@ async function addStockToMedicine(e) {
   }
   
   try {
-    await apiCall(`/medicines/${medicineId}`, {
+    await apiCall(`/medicines/${docId}`, {
       method: 'PUT',
       body: JSON.stringify({ data: { batch: updatedBatches } })
     });
@@ -320,7 +357,7 @@ async function addStockToMedicine(e) {
   }
 }
 
-// ==================== SALES – TABLE VIEW (NEW) ====================
+// ==================== SALES ====================
 
 let currentSelectedMedicine = null;
 let currentSelectedBatch = null;
@@ -332,15 +369,15 @@ async function initSaleTable() {
   if (!medicineSelect) return;
   
   medicineSelect.innerHTML = '<option value="">Select medicine</option>' + 
-    available.map(m => `<option value="${m.id}">${m.medicine_name}</option>`).join('');
+    available.map(m => `<option value="${m.documentId}">${m.medicine_name}</option>`).join('');
   
   medicineSelect.addEventListener('change', async () => {
-    const id = medicineSelect.value;
-    if (!id) {
+    const docId = medicineSelect.value;
+    if (!docId) {
       document.getElementById('batchTableContainer').style.display = 'none';
       return;
     }
-    currentSelectedMedicine = available.find(m => m.id == id);
+    currentSelectedMedicine = available.find(m => m.documentId === docId);
     renderBatchTable(currentSelectedMedicine);
   });
 }
@@ -359,14 +396,7 @@ function renderBatchTable(medicine) {
   let html = `
     <table class="min-w-full bg-white border rounded-lg overflow-hidden">
       <thead class="bg-gray-100">
-        <tr>
-          <th class="p-2 border">Batch Number</th>
-          <th class="p-2 border">Expiry Date</th>
-          <th class="p-2 border">Stock</th>
-          <th class="p-2 border">Price</th>
-          <th class="p-2 border">Action</th>
-        </tr>
-      </thead>
+        <tr><th class="p-2 border">Batch Number</th><th class="p-2 border">Expiry Date</th><th class="p-2 border">Stock</th><th class="p-2 border">Price</th><th class="p-2 border">Action</th></tr></thead>
       <tbody>
   `;
   
@@ -377,18 +407,15 @@ function renderBatchTable(medicine) {
         <td class="p-2 border text-center">${escapeHtml(batch.expiration_date)}</td>
         <td class="p-2 border text-center">${batch.stock}</td>
         <td class="p-2 border text-center">₱${batch.sellingPrice}</td>
-        <td class="p-2 border text-center">
-          <button class="btn-sm btn-primary sell-btn" data-batch='${JSON.stringify(batch).replace(/'/g, "&#39;")}'>Sell</button>
-        </td>
+        <td class="p-2 border text-center"><button class="btn-sm btn-primary sell-btn" data-batch='${JSON.stringify(batch).replace(/'/g, "&#39;")}'>Sell</button></td>
       </tr>
     `;
   });
   
-  html += `</tbody> </table>`;
+  html += `</tbody>`;
   container.innerHTML = html;
   tableContainer.style.display = 'block';
   
-  // Attach event listeners to all Sell buttons
   document.querySelectorAll('.sell-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const batchData = JSON.parse(btn.getAttribute('data-batch'));
@@ -412,7 +439,6 @@ function openQuantityModal(batch) {
   };
   
   const confirmBtn = document.getElementById('confirmSaleBtn');
-  // Remove previous listener to avoid duplicates
   const newConfirmBtn = confirmBtn.cloneNode(true);
   confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
   newConfirmBtn.addEventListener('click', async () => {
@@ -433,12 +459,12 @@ async function completeSale(batch) {
   }
   
   try {
-    // Create sale record
+    // Create sale record – use medicine's documentId
     await apiCall('/sales', {
       method: 'POST',
       body: JSON.stringify({
         data: {
-          medicine: currentSelectedMedicine.id,
+          medicine: currentSelectedMedicine.documentId,
           batchNumber: batch.batch_note,
           quantity: qty,
           unitPrice: batch.sellingPrice,
@@ -448,11 +474,11 @@ async function completeSale(batch) {
       })
     });
     
-    // Update stock in medicine
+    // Update stock in medicine – use documentId
     const updatedBatches = currentSelectedMedicine.batch.map(b => 
       b.batch_note === batch.batch_note ? { ...b, stock: b.stock - qty } : b
     );
-    await apiCall(`/medicines/${currentSelectedMedicine.id}`, {
+    await apiCall(`/medicines/${currentSelectedMedicine.documentId}`, {
       method: 'PUT',
       body: JSON.stringify({ data: { batch: updatedBatches } })
     });
@@ -469,44 +495,51 @@ async function completeSale(batch) {
 
 let currentSuppliers = [];
 
-async function loadSuppliersModern() {
+async function loadSuppliers() {
   try {
     const data = await apiCall('/suppliers');
     let suppliersList = Array.isArray(data) ? data : (data.data || []);
     currentSuppliers = suppliersList.map(item => {
-      if (item.attributes) return { id: item.id, ...item.attributes };
-      return item;
+      // Strapi v5 uses documentId; keep both for compatibility
+      return { 
+        id: item.id, 
+        documentId: item.documentId, 
+        ...item 
+      };
     });
     const role = getUserRole();
     const isAdmin = (role === 'admin');
     const container = document.getElementById('suppliersList');
     if (!container) return;
-    container.innerHTML = `
+    
+    let rowsHtml = `
       <div class="data-row font-semibold bg-gray-100">
         <span>Name</span><span>Contact Person</span><span>Phone</span><span>Email</span><span>License</span>
         ${isAdmin ? '<span>Actions</span>' : ''}
       </div>
-      ${currentSuppliers.map(s => `
-        <div class="data-row">
-          <span>${escapeHtml(s.SupplierName || '')}</span>
-          <span>${escapeHtml(s.ContactPerson || '')}</span>
-          <span>${escapeHtml(s.PhoneNumber || '')}</span>
-          <span>${escapeHtml(s.EmailAddress || '')}</span>
-          <span>${escapeHtml(s.LicenseNumber || '')}</span>
-          ${isAdmin ? `
-            <span>
-              <button class="text-blue-600 mr-2" onclick="editSupplier('${s.id}')"><i class="fas fa-edit"></i></button>
-              <button class="text-red-600" onclick="deleteSupplier('${s.id}')"><i class="fas fa-trash"></i></button>
-            </span>
-          ` : ''}
-        </div>
-      `).join('')}
     `;
+    rowsHtml += currentSuppliers.map(s => `
+      <div class="data-row">
+        <span>${escapeHtml(s.SupplierName || '')}</span>
+        <span>${escapeHtml(s.ContactPerson || '')}</span>
+        <span>${escapeHtml(s.PhoneNumber || '')}</span>
+        <span>${escapeHtml(s.EmailAddress || '')}</span>
+        <span>${escapeHtml(s.LicenseNumber || '')}</span>
+        ${isAdmin ? `
+          <span>
+            <button class="text-blue-600 mr-2" onclick="editSupplier('${s.documentId}')"><i class="fas fa-edit"></i></button>
+            <button class="text-red-600" onclick="deleteSupplier('${s.documentId}')"><i class="fas fa-trash"></i></button>
+          </span>
+        ` : ''}
+      </div>
+    `).join('');
+    container.innerHTML = rowsHtml;
+    
     if (isAdmin) {
-      window.editSupplier = (id) => {
-        const sup = currentSuppliers.find(s => s.id == id);
+      window.editSupplier = (docId) => {
+        const sup = currentSuppliers.find(s => s.documentId === docId);
         if (!sup) return;
-        document.getElementById('supplierId').value = sup.id;
+        document.getElementById('supplierId').value = sup.documentId;
         document.getElementById('supplierName').value = sup.SupplierName || '';
         document.getElementById('contactPerson').value = sup.ContactPerson || '';
         document.getElementById('phone').value = sup.PhoneNumber || '';
@@ -515,43 +548,32 @@ async function loadSuppliersModern() {
         document.getElementById('supplierModalTitle').innerText = 'Edit Supplier';
         document.getElementById('supplierModal').style.display = 'flex';
       };
-      window.deleteSupplier = async (id) => {
+      window.deleteSupplier = async (docId) => {
         if (confirm('Delete this supplier?')) {
-          await apiCall(`/suppliers/${id}`, { method: 'DELETE' });
-          await loadSuppliersModern();
+          try {
+            await apiCall(`/suppliers/${docId}`, { method: 'DELETE' });
+            await loadSuppliers();
+          } catch (err) {
+            console.error('Delete error:', err);
+            alert('Failed to delete supplier: ' + err.message);
+          }
         }
       };
+    } else {
+      window.editSupplier = undefined;
+      window.deleteSupplier = undefined;
     }
   } catch (err) {
     console.error('Failed to load suppliers:', err);
   }
 }
 
-async function loadSuppliersReadOnly() {
-  try {
-    const data = await apiCall('/suppliers');
-    let suppliersList = Array.isArray(data) ? data : (data.data || []);
-    const normalized = suppliersList.map(item => item.attributes ? { ...item.attributes, id: item.id } : item);
-    const container = document.getElementById('suppliersList');
-    if (!container) return;
-    container.innerHTML = `
-      <div class="data-row font-semibold bg-gray-100"><span>Name</span><span>Contact Person</span><span>Phone</span><span>Email</span><span>License</span></div>
-      ${normalized.map(s => `
-        <div class="data-row">
-          <span>${escapeHtml(s.SupplierName || '')}</span>
-          <span>${escapeHtml(s.ContactPerson || '')}</span>
-          <span>${escapeHtml(s.PhoneNumber || '')}</span>
-          <span>${escapeHtml(s.EmailAddress || '')}</span>
-          <span>${escapeHtml(s.LicenseNumber || '')}</span>
-        </div>
-      `).join('')}
-    `;
-  } catch (err) {
-    console.error('Failed to load suppliers (read-only):', err);
-  }
-}
-
 function openSupplierModal() {
+  const role = getUserRole();
+  if (role !== 'admin') {
+    alert('Access denied: Only admin can manage suppliers.');
+    return;
+  }
   document.getElementById('supplierId').value = '';
   document.getElementById('supplierForm').reset();
   document.getElementById('supplierModalTitle').innerText = 'Add Supplier';
@@ -564,7 +586,12 @@ function closeSupplierModal() {
 
 async function saveSupplier(e) {
   e.preventDefault();
-  const id = document.getElementById('supplierId').value;
+  const role = getUserRole();
+  if (role !== 'admin') {
+    alert('Access denied: Only admin can modify suppliers.');
+    return;
+  }
+  const docId = document.getElementById('supplierId').value;
   const data = {
     SupplierName: document.getElementById('supplierName').value,
     ContactPerson: document.getElementById('contactPerson').value,
@@ -573,13 +600,15 @@ async function saveSupplier(e) {
     LicenseNumber: document.getElementById('license').value
   };
   try {
-    if (id) {
-      await apiCall(`/suppliers/${id}`, { method: 'PUT', body: JSON.stringify({ data }) });
+    if (docId) {
+      // Update existing
+      await apiCall(`/suppliers/${docId}`, { method: 'PUT', body: JSON.stringify({ data }) });
     } else {
+      // Create new
       await apiCall('/suppliers', { method: 'POST', body: JSON.stringify({ data }) });
     }
     closeSupplierModal();
-    await loadSuppliersModern();
+    await loadSuppliers();
   } catch (err) {
     console.error('Save supplier error:', err);
     alert('Error saving supplier: ' + err.message);
@@ -632,7 +661,7 @@ function escapeHtml(str) {
   return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
 }
 
-// Attach event listeners after DOM loads
+// Event listeners
 document.addEventListener('DOMContentLoaded', () => {
   const addStockForm = document.getElementById('addStockForm');
   if (addStockForm) addStockForm.addEventListener('submit', addStockToMedicine);
@@ -640,12 +669,17 @@ document.addEventListener('DOMContentLoaded', () => {
   if (editMedicineForm) editMedicineForm.addEventListener('submit', editMedicineSubmit);
 });
 
-// Make functions global for onclick
+// Global exports
 window.openEditMedicineModal = openEditMedicineModal;
 window.closeEditMedicineModal = closeEditMedicineModal;
 window.openEditStockModal = openEditStockModal;
 window.closeEditStockModal = closeEditStockModal;
 window.openSupplierModal = openSupplierModal;
 window.closeSupplierModal = closeSupplierModal;
-window.editSupplier = null; // will be set dynamically
-window.deleteSupplier = null;
+window.saveSupplier = saveSupplier;
+window.addMedicine = addMedicine;
+window.closeMedicineModal = closeMedicineModal;
+window.initSaleTable = initSaleTable;
+window.loadSuppliers = loadSuppliers;
+window.loadDashboardData = loadDashboardData;
+window.renderMedicinesFull = renderMedicinesFull;
