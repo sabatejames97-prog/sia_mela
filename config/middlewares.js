@@ -5,7 +5,7 @@ module.exports = [
   {
     name: 'strapi::cors',
     config: {
-      origin: ['https://pharmacy-sia-b8.onrender.com'], // your frontend URL
+      origin: ['https://pharmacy2.onrender.com'], // your frontend URL
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
       headers: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
       credentials: true, // required for authentication
