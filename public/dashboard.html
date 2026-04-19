@@ -11,26 +11,16 @@
 <body class="bg-gray-50">
   <div id="navbar"></div>
   <div class="dashboard-wrapper">
-    <!-- Stats Cards -->
     <div class="cards-grid" id="statsCards"></div>
-    <!-- Low Stock & Expired Alerts -->
     <div class="grid md:grid-cols-2 gap-6 mb-8" id="alerts"></div>
-    <!-- Recent Medicines Table -->
     <div class="table-section">
       <div class="table-header">
         <h3><i class="fas fa-pills"></i> Recent Medicines</h3>
-        <button class="btn-sm btn-primary" onclick="window.location.href='/medicines.html'">View All</button>
+        <button class="btn-sm btn-primary" id="viewAllBtn">View All</button>
       </div>
       <div id="recentMedicinesTable"></div>
     </div>
   </div>
   <script src="app.js"></script>
-  <script>
-    (async function() {
-      if (!isAuthenticated()) window.location.href = '/login.html';
-      loadNavbar();
-      await loadDashboardData();
-    })();
-  </script>
 </body>
 </html>

@@ -8,20 +8,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Additional custom styles for larger login form */
-    .login-card {
-      width: 500px;
-      max-width: 90%;
-      padding: 2rem;
-    }
-    .login-input {
-      padding: 0.9rem 1rem;
-      font-size: 1rem;
-    }
-    .login-btn {
-      padding: 0.9rem;
-      font-size: 1.1rem;
-    }
+    .login-card { width: 500px; max-width: 90%; padding: 2rem; }
+    .login-input { padding: 0.9rem 1rem; font-size: 1rem; }
+    .login-btn { padding: 0.9rem; font-size: 1.1rem; }
   </style>
 </head>
 <body class="bg-gray-100">
@@ -39,27 +28,5 @@
     </div>
   </div>
   <script src="app.js"></script>
-  <script>
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const errorDiv = document.getElementById('errorMsg');
-      try {
-        const res = await fetch(`${API_URL}/auth/local`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier: email, password })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error.message);
-        localStorage.setItem('jwt', data.jwt);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        window.location.href = '/dashboard.html';
-      } catch (err) {
-        errorDiv.classList.remove('hidden');
-        errorDiv.innerText = err.message;
-      }
-    });
-  </script>
 </body>
 </html>
