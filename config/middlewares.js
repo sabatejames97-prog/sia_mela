@@ -5,11 +5,7 @@ module.exports = [
   {
     name: 'strapi::cors',
     config: {
-      enabled: true,
-      origin: [
-        'http://localhost:1337',
-        'https://sia-pharmacy-4p7k.onrender.com'   // <-- ADD THIS EXACT URL
-      ],
+      origin: ['*'],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       headers: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
       credentials: true,
