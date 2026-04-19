@@ -7,8 +7,8 @@ module.exports = [
     config: {
       enabled: true,
       origin: [
-        'http://localhost:1337',                       // local testing
-        'https://Sia-Pharmacy-url.onrender.com'       // ← your static site URL
+        'http://localhost:1337',
+        'https://sia-pharmacy-4p7k.onrender.com'   // <-- ADD THIS EXACT URL
       ],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       headers: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
