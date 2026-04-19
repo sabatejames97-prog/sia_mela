@@ -4,7 +4,7 @@
 // app.js – Pharmacy Inventory System (Strapi v5)
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:1337/api'
-  : 'https://sia_mela.onrender.com/api';   // <-- CHANGE THIS TO YOUR RENDER BACKEND URL
+  : 'https://sia_mela.onrender.com/api';   // <-- CHANGE TO YOUR ACTUAL BACKEND URL
 
 // ==================== AUTH & HELPERS ====================
 function isAuthenticated() {
@@ -529,7 +529,6 @@ async function loadSuppliers() {
         document.getElementById('supplierModalTitle').innerText = 'Edit Supplier';
         document.getElementById('supplierModal').style.display = 'flex';
       };
-      // deleteSupplier function removed
     } else {
       window.editSupplier = undefined;
     }
@@ -628,15 +627,100 @@ function escapeHtml(str) {
   return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
 }
 
-// Event listeners
+// ==================== PAGE-SPECIFIC INITIALISATION (no inline scripts) ====================
 document.addEventListener('DOMContentLoaded', () => {
-  const addStockForm = document.getElementById('addStockForm');
-  if (addStockForm) addStockForm.addEventListener('submit', addStockToMedicine);
-  const editMedicineForm = document.getElementById('editMedicineForm');
-  if (editMedicineForm) editMedicineForm.addEventListener('submit', editMedicineSubmit);
+  const path = window.location.pathname;
+
+  // --- Login page ---
+  if (path === '/login.html') {
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('errorMsg');
+        try {
+          const res = await fetch(`${API_URL}/auth/local`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: email, password })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error.message);
+          localStorage.setItem('jwt', data.jwt);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          window.location.href = '/dashboard.html';
+        } catch (err) {
+          errorDiv.classList.remove('hidden');
+          errorDiv.innerText = err.message;
+        }
+      });
+    }
+  }
+
+  // --- Dashboard page ---
+  else if (path === '/dashboard.html') {
+    if (!isAuthenticated()) {
+      window.location.href = '/login.html';
+      return;
+    }
+    loadNavbar();
+    loadDashboardData();
+  }
+
+  // --- Medicines page ---
+  else if (path === '/medicines.html') {
+    if (!isAuthenticated()) {
+      window.location.href = '/login.html';
+      return;
+    }
+    loadNavbar();
+    renderMedicinesFull();
+    const addBtn = document.getElementById('addMedicineBtn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        document.getElementById('medicineModal').style.display = 'flex';
+      });
+    }
+    const addForm = document.getElementById('addMedicineForm');
+    if (addForm) {
+      addForm.addEventListener('submit', addMedicine);
+    }
+  }
+
+  // --- Sales page ---
+  else if (path === '/sales.html') {
+    if (!isAuthenticated()) {
+      window.location.href = '/login.html';
+      return;
+    }
+    loadNavbar();
+    initSaleTable();
+  }
+
+  // --- Suppliers page ---
+  else if (path === '/suppliers.html') {
+    if (!isAuthenticated()) {
+      window.location.href = '/login.html';
+      return;
+    }
+    const role = getUserRole();
+    const isAdmin = (role === 'admin');
+    loadNavbar();
+    loadSuppliers();
+    if (isAdmin) {
+      const addBtn = document.getElementById('showAddSupplierBtn');
+      if (addBtn) {
+        addBtn.style.display = 'inline-flex';
+        addBtn.addEventListener('click', () => openSupplierModal());
+      }
+      const supplierForm = document.getElementById('supplierForm');
+      if (supplierForm) supplierForm.addEventListener('submit', saveSupplier);
+    }
+  }
 });
 
-// Global exports
+// Global exports (keep existing)
 window.openEditMedicineModal = openEditMedicineModal;
 window.closeEditMedicineModal = closeEditMedicineModal;
 window.openEditStockModal = openEditStockModal;

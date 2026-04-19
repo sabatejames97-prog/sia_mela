@@ -38,23 +38,5 @@
   </div>
 
   <script src="app.js"></script>
-  <script>
-    (async function() {
-      if (!isAuthenticated()) window.location.href = '/login.html';
-      const role = getUserRole();
-      const isAdmin = (role === 'admin');
-      loadNavbar();
-      await loadSuppliers();
-      if (isAdmin) {
-        const addBtn = document.getElementById('showAddSupplierBtn');
-        if (addBtn) {
-          addBtn.style.display = 'inline-flex';
-          addBtn.addEventListener('click', () => openSupplierModal());
-        }
-        const supplierForm = document.getElementById('supplierForm');
-        if (supplierForm) supplierForm.addEventListener('submit', saveSupplier);
-      }
-    })();
-  </script>
 </body>
 </html>

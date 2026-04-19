@@ -28,27 +28,5 @@
     </div>
   </div>
   <script src="app.js"></script>
-  <script>
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const errorDiv = document.getElementById('errorMsg');
-      try {
-        const res = await fetch(`${API_URL}/auth/local`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier: email, password })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error.message);
-        localStorage.setItem('jwt', data.jwt);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        window.location.href = '/dashboard.html';
-      } catch (err) {
-        errorDiv.classList.remove('hidden');
-        errorDiv.innerText = err.message;
-      }
-    });
-  </script>
 </body>
 </html>
