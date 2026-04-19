@@ -229,6 +229,7 @@ body {
   color: #4a5568;
 }
 
+/* Data rows – centered content */
 .data-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -237,10 +238,25 @@ body {
   border-bottom: 1px solid #edf2f7;
   transition: background 0.2s;
   font-size: 15px;
+  text-align: center;
 }
 
 .data-row:hover {
   background: #f9fafb;
+}
+
+/* Table cells – centered */
+td, th {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Specific tables inside medicines list */
+#medicinesList table td,
+#medicinesList table th,
+#batchTable td,
+#batchTable th {
+  text-align: center;
 }
 
 /* Modals */
