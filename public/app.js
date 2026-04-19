@@ -4,7 +4,7 @@
 // app.js – Pharmacy Inventory System (Strapi v5)
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:1337/api'
-  : 'https://sia-mela.onrender.com/api';   // <-- CHANGE THIS TO YOUR RENDER BACKEND URL
+  : 'https://sia_mela.onrender.com/api';   // <-- CHANGE THIS TO YOUR RENDER BACKEND URL
 
 // ==================== AUTH & HELPERS ====================
 function isAuthenticated() {
