@@ -2,7 +2,7 @@
 // @ts-nocheck
 
 /// app.js – Pharmacy Inventory System (Strapi v5) – with batch table for sales
-const API_URL = 'https://sia-mela-2.onrender.com/api';
+const API_URL = '/api';
 
 // ==================== AUTH & HELPERS ====================
 
