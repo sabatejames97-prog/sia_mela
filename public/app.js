@@ -1,11 +1,12 @@
 // app.js – shared across all pages
 // @ts-nocheck
 
-/// app.js – Pharmacy Inventory System (Strapi v5) – with batch table for sales
-const API_URL = 'https://sia-mela-2.onrender.com/api';
+// app.js – Pharmacy Inventory System (Strapi v5)
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:1337/api'
+  : 'https://sia-mela.onrender.com/api';   // <-- CHANGE THIS TO YOUR RENDER BACKEND URL
 
 // ==================== AUTH & HELPERS ====================
-
 function isAuthenticated() {
   return !!localStorage.getItem('jwt');
 }
@@ -18,7 +19,6 @@ function getUser() {
 function getUserRole() {
   const user = getUser();
   if (!user) return null;
-
   if (user.role && typeof user.role === 'object' && user.role.name) {
     const roleName = user.role.name.toLowerCase();
     if (roleName === 'admin') return 'admin';
@@ -29,12 +29,10 @@ function getUserRole() {
     if (roleName === 'admin') return 'admin';
     if (roleName === 'staff') return 'staff';
   }
-
   const email = (user.email || '').toLowerCase();
   const adminEmails = ['admin-phar@gmail.com', 'admin@admin.com'];
   if (adminEmails.includes(email)) return 'admin';
   if (email.includes('admin') || email.includes('phar')) return 'admin';
-
   return 'staff';
 }
 
@@ -63,7 +61,6 @@ async function fetchMedicines() {
 }
 
 // ==================== DASHBOARD ====================
-
 async function loadDashboardData() {
   const medicines = await fetchMedicines();
   let totalStock = 0, lowStockCount = 0, expiredCount = 0;
@@ -101,7 +98,6 @@ async function loadDashboardData() {
 }
 
 // ==================== MEDICINES ====================
-
 async function renderMedicinesFull() {
   const medicines = await fetchMedicines();
   const container = document.getElementById('medicinesList');
@@ -154,7 +150,6 @@ async function renderMedicinesFull() {
 // ---------- Add Medicine ----------
 async function addMedicine(e) {
   e.preventDefault();
-  
   const medicineName = document.getElementById('medicine_name').value.trim();
   const medicineDesc = document.getElementById('medicine_desc').value.trim();
   const medicineType = document.getElementById('medicine_type').value;
@@ -162,7 +157,6 @@ async function addMedicine(e) {
   const expiryDate = document.getElementById('expiration_date').value;
   const stock = parseInt(document.getElementById('stock').value);
   const sellingPrice = parseFloat(document.getElementById('sellingPrice').value);
-  
   if (!medicineName) { alert('Medicine name is required'); return; }
   if (!medicineDesc) { alert('Description is required'); return; }
   if (!batchNote) { alert('Batch number is required'); return; }
@@ -192,7 +186,6 @@ async function addMedicine(e) {
     sellingPrice: sellingPrice,
     is_expired: false
   };
-  
   const medicineData = {
     medicine_name: medicineName,
     medicine_desc: medicineDesc,
@@ -322,11 +315,9 @@ async function addStockToMedicine(e) {
     const newBatchNote = document.getElementById('newBatchNote').value.trim();
     const newExpiry = document.getElementById('newExpirationDate').value;
     const newPrice = parseFloat(document.getElementById('newSellingPrice').value);
-    
     if (!newBatchNote) { alert('New batch number is required'); return; }
     if (!newExpiry) { alert('Expiration date is required for new batch'); return; }
     if (isNaN(newPrice) || newPrice <= 0) { alert('Valid selling price is required'); return; }
-    
     updatedBatches.push({
       batch_note: newBatchNote,
       expiration_date: newExpiry,
@@ -358,7 +349,6 @@ async function addStockToMedicine(e) {
 }
 
 // ==================== SALES ====================
-
 let currentSelectedMedicine = null;
 let currentSelectedBatch = null;
 
@@ -412,7 +402,7 @@ function renderBatchTable(medicine) {
     `;
   });
   
-  html += `</tbody>`;
+  html += `</tbody></table>`;
   container.innerHTML = html;
   tableContainer.style.display = 'block';
   
@@ -459,7 +449,6 @@ async function completeSale(batch) {
   }
   
   try {
-    // Create sale record – use medicine's documentId
     await apiCall('/sales', {
       method: 'POST',
       body: JSON.stringify({
@@ -474,7 +463,6 @@ async function completeSale(batch) {
       })
     });
     
-    // Update stock in medicine – use documentId
     const updatedBatches = currentSelectedMedicine.batch.map(b => 
       b.batch_note === batch.batch_note ? { ...b, stock: b.stock - qty } : b
     );
@@ -492,7 +480,6 @@ async function completeSale(batch) {
 }
 
 // ==================== SUPPLIERS ====================
-
 let currentSuppliers = [];
 
 async function loadSuppliers() {
@@ -500,12 +487,7 @@ async function loadSuppliers() {
     const data = await apiCall('/suppliers');
     let suppliersList = Array.isArray(data) ? data : (data.data || []);
     currentSuppliers = suppliersList.map(item => {
-      // Strapi v5 uses documentId; keep both for compatibility
-      return { 
-        id: item.id, 
-        documentId: item.documentId, 
-        ...item 
-      };
+      return { id: item.id, documentId: item.documentId, ...item };
     });
     const role = getUserRole();
     const isAdmin = (role === 'admin');
@@ -527,8 +509,7 @@ async function loadSuppliers() {
         <span>${escapeHtml(s.LicenseNumber || '')}</span>
         ${isAdmin ? `
           <span>
-            <button class="text-blue-600 mr-2" onclick="editSupplier('${s.documentId}')"><i class="fas fa-edit"></i></button>
-            <button class="text-red-600" onclick="deleteSupplier('${s.documentId}')"><i class="fas fa-trash"></i></button>
+            <button class="text-blue-600" onclick="editSupplier('${s.documentId}')"><i class="fas fa-edit"></i></button>
           </span>
         ` : ''}
       </div>
@@ -548,20 +529,9 @@ async function loadSuppliers() {
         document.getElementById('supplierModalTitle').innerText = 'Edit Supplier';
         document.getElementById('supplierModal').style.display = 'flex';
       };
-      window.deleteSupplier = async (docId) => {
-        if (confirm('Delete this supplier?')) {
-          try {
-            await apiCall(`/suppliers/${docId}`, { method: 'DELETE' });
-            await loadSuppliers();
-          } catch (err) {
-            console.error('Delete error:', err);
-            alert('Failed to delete supplier: ' + err.message);
-          }
-        }
-      };
+      // deleteSupplier function removed
     } else {
       window.editSupplier = undefined;
-      window.deleteSupplier = undefined;
     }
   } catch (err) {
     console.error('Failed to load suppliers:', err);
@@ -601,10 +571,8 @@ async function saveSupplier(e) {
   };
   try {
     if (docId) {
-      // Update existing
       await apiCall(`/suppliers/${docId}`, { method: 'PUT', body: JSON.stringify({ data }) });
     } else {
-      // Create new
       await apiCall('/suppliers', { method: 'POST', body: JSON.stringify({ data }) });
     }
     closeSupplierModal();
@@ -616,7 +584,6 @@ async function saveSupplier(e) {
 }
 
 // ==================== NAVBAR ====================
-
 function loadNavbar() {
   const user = getUser();
   const role = getUserRole();
